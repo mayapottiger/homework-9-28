@@ -74,10 +74,6 @@ We're loading three packages today: the Tidyverse, Janitor and a new one, [Lubri
 
 ```{r}
 
-library(tidyverse)
-library(janitor)
-library(lubridate)
-
 ```
 
 ## Load Data
@@ -98,14 +94,7 @@ mingo <- read_tsv("data/arcos-wv-mingo-54059-itemized.tsv")
 
 ## Examine the Data
 
-**Task**: Use glimpse() and View() to get a sense of the data.
-
-```{r}
-
-glimpse(mingo)
-# View(mingo)
-  
-```
+**Task**: Use glimpse() and View() to get a sense of the data.     
 
 ## Cleaning
 
@@ -182,13 +171,6 @@ mingo %>%
 **Task**: Create a codeblock below and create a table that answers the following question: how many total pills were shipped to Mingo County each year between 2006 and 2012? In a comment, explain what the overall trend was during that period. 
 
 ```{r}
-
-mingo %>%
-  group_by(transaction_year) %>%
-  mutate(total_pills = sum(dosage_unit)) %>%
-  summarise(total_pills = n())
-
-# Total pills peaked in 2008. The number of pills sent steadily increased from 2006 to 2008, but then dedlined following that with a dramatic decrease from 2009 to 2010, and then a slight decrease each year after that.
 
 ```
 
