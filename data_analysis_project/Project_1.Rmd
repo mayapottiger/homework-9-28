@@ -1,0 +1,106 @@
+---
+title: "project_1"
+output: html_document
+author: Maya Pottiger
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# running libraries to use
+
+library(tidyverse)
+library(janitor)
+library(arcos)
+library(scales)
+library(ggrepel)
+library(tidycensus)
+
+```
+
+
+```{r}
+
+# In our last in-class lab, we wrote code to rank zip codes based on the median income in a county and how many pills per person the county received from 2006-2012. At the end of the lab, I ran the data for all of the counties in the country. Right now, I am going to run the data for the individual towns within Anne Arundel County. I've looked at the rankings before, but now I will visualize them.
+
+# This is from lab_O7. I requested my own key from the census: 
+
+key <- "uO4EK6I"
+
+census_api_key("366af81ca42273ae67ad0729766f54f041bd300d")
+
+
+# The following graf is from lab_07:
+
+# Store a table with the median household income value for each county using the get_acs() function.  ACS is short for American Community Survey, one of two main census products. In the table that's loaded in, the :estimate" is the median household income for that county, averaged over 5 years ending in 2006. 
+
+county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
+
+# How did I get the variables? I pulled in a table from the tidycensus package that lists all of the thousands of variables available through the census. Load the table below and view it.  Use filters in the R Viewer window to find things you might want to use later. You can also find table and variable numbers at https://data.census.gov/cedsci/.
+
+acs_variables <- load_variables(2012, "acs5", cache = TRUE)
+
+# Filter just for Maryland counties
+
+md_county_median_household_income <- county_median_household_income %>%
+  filter(str_detect(NAME, ", Maryland"))
+
+
+```
+```{r}
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
+```
+
+```{r}
+
+maryland_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(buyer_county, year, dosage_unit, countyfips)
+```
+
+```{r}
+maryland_population_2012 <- county_population(key = key) %>%
+  clean_names() %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(county_name, population, countyfips)
+
+```
+
+```{r}
+maryland_2012 <- maryland_pills_2012 %>%
+  inner_join(maryland_population_2012, by=("countyfips")) %>%
+  select(buyer_county, dosage_unit, population, countyfips)
+
+```
+
+```{r}
+
+md_2012_pills_per_person <- maryland_2012 %>%
+  select(buyer_county, dosage_unit, population, countyfips) %>%
+  mutate(pills_per_person = (dosage_unit / population))
+
+```
+
+```{r}
+
+md_county_median_household_income <- md_county_median_household_income %>%
+  mutate(countyfips = GEOID)
+
+```
+
+```{r}
+
+md_2012_household_pills <- md_county_median_household_income %>%
+  inner_join(md_2012_pills_per_person, by=("countyfips"))
+
+```
+
+
+
+
+
