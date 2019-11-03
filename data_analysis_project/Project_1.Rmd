@@ -18,6 +18,8 @@ library(arcos)
 library(scales)
 library(ggrepel)
 library(tidycensus)
+library(dplyr)
+library(rvest)
 
 ```
 
@@ -96,10 +98,238 @@ md_county_median_household_income <- md_county_median_household_income %>%
 ```{r}
 
 md_2012_household_pills <- md_county_median_household_income %>%
-  inner_join(md_2012_pills_per_person, by=("countyfips"))
+  inner_join(md_2012_pills_per_person, by=("countyfips")) %>%
+  arrange(desc(dosage_unit))
+
+# From this, we learn that Anne Arundel County ranks third in the most pills received in the state of Maryland.
 
 ```
 
+```{r}
+
+md_2012_household_pills %>%
+  arrange(desc(estimate))
+
+# Anne Arundel County is the fifth-richest county in Maryland. Baltimore County, which received the most pills, ranks 12th. The poorest county in Maryland, Allegany County, ranks 12th for the most number of pills received. In Maryland, there isn't a direct correlation between median household income and number of pills received.
+
+```
+
+```{r}
+
+md_2012_household_pills <- md_county_median_household_income %>%
+  inner_join(md_2012_pills_per_person, by=("countyfips")) %>%
+  arrange(desc(pills_per_person))
+
+# Kent County had the highest pills per person in the state of Maryland. Anne Arundel County is not even in the top 10. Allegany, the poorest county, ranks second. Baltimore County, which had the most pills, ranks 8th.
+
+```
+
+```{r}
+
+glimpse(md_county_median_household_income) %>%
+  arrange(desc(estimate))
+
+# Howard County has the highest medium income in Maryland. Anne Arundel County ranks fifth. This surprised me.
+
+```
+
+```{r}
+
+# I want to rank the towns in Anne Arundel County based on dosage_unit.
+
+arundel_pharmacies <- total_pharmacies_county(county="Anne Arundel", state="MD", key = key)
+
+```
+
+```{r}
+
+arundel_pharmacies %>%
+  group_by(buyer_city) %>%
+  summarise(total_pills = sum(total_dosage_unit)) %>%
+  arrange(desc(total_pills))
+
+# Glen Burnie received the most pills... Where does Glen Burnie fall in median household income? 
+
+```
+
+```{r}
+
+# Where does Glen Burnie fall in terms of median household income in Anne Arundel County?
+
+aac_raw <- county_raw(county="Anne Arundel", state="MD", key = key)
+
+aac_pharm_tracts <- pharm_tracts(county="Anne Arundel", state="MD", key = key)
+
+
+```
+
+```{r}
+
+aac_pharms <- aac_raw %>%
+  inner_join(aac_pharm_tracts, by=c("BUYER_DEA_NO")) %>%
+  select(BUYER_CITY, BUYER_ZIP, DOSAGE_UNIT, TRACTCE) %>%
+  group_by(BUYER_CITY, BUYER_ZIP, TRACTCE) %>%
+  summarise()
+
+# I was able to group the city, zip and tract to see how these numbers correspond. Annapolis is the only city that had two zip codes. This will be helpful going forward if try to break down DOSAGE_UNIT by zip code.
+
+```
+
+```{r}
+
+# v1 <- load_variables(year='2006', dataset='aac_pharms', cache = FALSE, key=key)
+
+# I was trying to load the variables so I could look up median household income, but I kept getting "open.connection(x, "rb") : HTTP error 404." I downloaded rvest, but it didn't help. I also got a warning message about closing an unused connectin.
+
+```
+
+```{r}
+
+test <- get_acs(geography = "tract", variables = "B19013_001",
+                state = "TX", county = "Tarrant", geometry = TRUE)
+
+
+```
+
+```{r}
+
+aac_monthly <- summarized_county_monthly(county="Anne Arundel", state="MD", key = key)
+
+aac_monthly %>%
+  arrange(desc(DOSAGE_UNIT))
+
+# January 2006 was significantly lower than the rest of the range. 2011 and 2012 were the higher income years for pills. 
+
+```
+
+```{r}
+
+aac_buyer <- combined_buyer_annual(county="Anne Arundel", state="MD", key = key)
+
+aac_buyer %>%
+  group_by(BUYER_DEA_NO, year) %>%
+  summarise(DOSAGE_UNIT) %>%
+  arrange(desc(DOSAGE_UNIT))
+
+# Two years in a row, the same buyer received the highest number of pills, and it was significantly higher than the other numbers.
+
+```
+
+```{r}
+
+aac_buyer_addresses <- buyer_addresses(county="Anne Arundel", state="MD", key = key)
+
+# I searched the BUYER_DEA_NO from the previous codeblock into this data set. The buyer is Crain Towers Pharmacy, located in Glen Burnie. It is also the site of a National Spine & Pain Center, so that definitely adds legitimacy, but how much?
+
+```
+
+```{r}
+
+aac_buyer_details <- combined_buyer_monthly(county="Anne Arundel", state="MD", year="2006", key = key)
+
+```
+
+```{r}
+
+country_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(year=="2006") %>%
+  select(buyer_county, buyer_state, year, dosage_unit) %>%
+  arrange(desc(dosage_unit))
+
+# Where Anne Arundel County ranks in the county by year:
+# 2006: 108, with 14376402 pills
+# 2007: 112, with 15836968 pills
+# 2008: 124, with 16671976 pills
+# 2009: 117, with 18239025 pills
+# 2010: 124, with 19151845 pills
+# 2011: 126, with 20354650 pills
+# 2012: 125, with 19928983 pills
+
+# Anne Arundel County ranked the highest in 2006, at 108 with a total 14,376,402 pills received.
+
+```
+
+```{r}
+
+aac_buyer %>%
+  filter(year=="2006") %>%
+  select(BUYER_DEA_NO, BUYER_COUNTY, BUYER_STATE, year, DOSAGE_UNIT) %>%
+  arrange(desc(DOSAGE_UNIT))
+
+# The top buyer in 2006 was Crain Towers Pharmacy. It was responsible for about 3.386% of the pills sent to Anne Arundel County in 2006.
+
+```
+
+```{r}
+
+country_income_05_09 <- get_acs(geography = "county", variables = c("B19013_001"), year = 2009) %>%
+  arrange(desc(estimate))
+
+# From 2005-2009, Anne Arundel County ranked 34th in median household income in the country. This dataset has a large margin of error.
+
+```
+
+```{r}
+
+country_income_08_12 <- get_acs(geography = "county", variables = c("B19013_001"), year = 2012) %>%
+  arrange(desc(estimate))
+
+# From 2008-2012, Anne Arundel County moved up in rank to 27th in median household income in the country. 
+
+```
+
+```{r}
+
+# country_income_08_12 <- get_acs(geography = "tract", variables = c("B19013_001"), survey="acs5", year = 2012) %>%
+#  arrange(desc(estimate))
+
+# Per a Data Camp tip sheet, I tried setting the geography as 'tract,' since I found those in a previous codeblock. But it said my API call had errors in that there was an unknown/unsupported geography heirarchy. When I tried to write county and tract, it said that I had the same argument twice, both of which returned information. So I'm not sure how to get the tract to return information. 
+
+```
+
+
+```{r}
+
+aac_tract_income <- get_acs(geography = "tract", variables = "B19013_001",
+                state = "MD", county = "Anne Arundel", geometry = TRUE)
+
+# I was able to use this to get the median household incomes based on tract. However, these tract numbers don't match up with the TRACTCE numbers I previously found.
+
+```
+
+```{r}
+
+md_population <- state_population(state="MD", key = key)
+
+# Maryland had its highest ranking of pills received in 2006, which is when the population was lowest in the 2006-2012 time period we are analyzing.
+
+```
+
+```{r}
+
+country_income_08_12 <- country_income_08_12 %>%
+  mutate(countyfips = GEOID)
+
+```
+
+```{r}
+# country_income_pills <- country_income_08_12 %>%
+#  inner_join(country_pills_2012, by=("countyfips")) %>%
+#  arrange(desc(dosage_unit))
+```
+
+```{r}
+# ggplot(country_income_pills) +
+#  geom_point(aes(dosage_unit, estimate)) +
+#  labs(title="Dosage Unit by Median Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="buyer_county") +
+#  scale_y_continuous(labels = comma) +
+#  scale_x_continuous(labels = comma) + 
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#  geom_smooth(aes(dosage_unit, estimate), method = "lm", se = FALSE)
+
+# From this, I can see that the county with the highest dosage unit was under the country's average for median household income.
+
+```
 
 
 
