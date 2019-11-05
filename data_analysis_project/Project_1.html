@@ -371,12 +371,12 @@ summary {
 <pre class="r"><code># running libraries to use
 
 library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
 <pre><code>## ✔ ggplot2 3.2.1     ✔ purrr   0.3.3
 ## ✔ tibble  2.1.3     ✔ dplyr   0.8.3
 ## ✔ tidyr   1.0.0     ✔ stringr 1.4.0
 ## ✔ readr   1.3.1     ✔ forcats 0.4.0</code></pre>
-<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()</code></pre>
 <pre class="r"><code>library(janitor)</code></pre>
@@ -545,11 +545,17 @@ aac_pharm_tracts &lt;- pharm_tracts(county=&quot;Anne Arundel&quot;, state=&quot
   |                                                                       
   |                                                                 |   0%
   |                                                                       
+  |                                                                 |   1%
+  |                                                                       
   |=                                                                |   1%
   |                                                                       
   |=                                                                |   2%
   |                                                                       
+  |==                                                               |   2%
+  |                                                                       
   |==                                                               |   3%
+  |                                                                       
+  |==                                                               |   4%
   |                                                                       
   |===                                                              |   4%
   |                                                                       
@@ -583,6 +589,8 @@ aac_pharm_tracts &lt;- pharm_tracts(county=&quot;Anne Arundel&quot;, state=&quot
   |                                                                       
   |==========                                                       |  16%
   |                                                                       
+  |===========                                                      |  16%
+  |                                                                       
   |===========                                                      |  17%
   |                                                                       
   |============                                                     |  18%
@@ -610,6 +618,8 @@ aac_pharm_tracts &lt;- pharm_tracts(county=&quot;Anne Arundel&quot;, state=&quot
   |=================                                                |  25%
   |                                                                       
   |=================                                                |  26%
+  |                                                                       
+  |=================                                                |  27%
   |                                                                       
   |==================                                               |  27%
   |                                                                       
@@ -718,6 +728,8 @@ aac_pharm_tracts &lt;- pharm_tracts(county=&quot;Anne Arundel&quot;, state=&quot
   |===========================================                      |  65%
   |                                                                       
   |===========================================                      |  66%
+  |                                                                       
+  |===========================================                      |  67%
   |                                                                       
   |============================================                     |  67%
   |                                                                       
@@ -1126,59 +1138,61 @@ aac_buyer %&gt;%
   |                                                                       
   |=                                                                |   2%
   |                                                                       
-  |===                                                              |   4%
+  |==                                                               |   3%
   |                                                                       
-  |===                                                              |   5%
+  |====                                                             |   5%
   |                                                                       
   |====                                                             |   7%
   |                                                                       
-  |=====                                                            |   8%
+  |======                                                           |   9%
   |                                                                       
-  |=======                                                          |  10%
+  |======                                                           |  10%
+  |                                                                       
+  |========                                                         |  12%
   |                                                                       
   |========                                                         |  13%
   |                                                                       
-  |=========                                                        |  14%
+  |==========                                                       |  15%
   |                                                                       
   |==========                                                       |  16%
   |                                                                       
-  |===========                                                      |  17%
+  |============                                                     |  18%
   |                                                                       
   |============                                                     |  19%
   |                                                                       
   |==============                                                   |  21%
   |                                                                       
-  |==============                                                   |  22%
+  |===============                                                  |  22%
   |                                                                       
   |================                                                 |  24%
   |                                                                       
-  |================                                                 |  25%
+  |=================                                                |  26%
   |                                                                       
-  |==================                                               |  27%
+  |==================                                               |  28%
   |                                                                       
   |===================                                              |  29%
   |                                                                       
-  |====================                                             |  30%
+  |====================                                             |  31%
   |                                                                       
   |=====================                                            |  32%
   |                                                                       
-  |======================                                           |  33%
+  |======================                                           |  34%
   |                                                                       
-  |=======================                                          |  36%
+  |=======================                                          |  35%
   |                                                                       
-  |=========================                                        |  38%
+  |========================                                         |  38%
   |                                                                       
-  |=========================                                        |  39%
+  |==========================                                       |  40%
   |                                                                       
-  |===========================                                      |  41%
+  |==========================                                       |  41%
   |                                                                       
-  |===========================                                      |  42%
+  |============================                                     |  43%
   |                                                                       
   |=============================                                    |  44%
   |                                                                       
   |==============================                                   |  46%
   |                                                                       
-  |===============================                                  |  47%
+  |===============================                                  |  48%
   |                                                                       
   |================================                                 |  49%
   |                                                                       
@@ -1188,17 +1202,17 @@ aac_buyer %&gt;%
   |                                                                       
   |===================================                              |  54%
   |                                                                       
-  |====================================                             |  56%
+  |====================================                             |  55%
   |                                                                       
   |=====================================                            |  58%
   |                                                                       
   |======================================                           |  59%
   |                                                                       
-  |========================================                         |  61%
+  |=======================================                          |  61%
   |                                                                       
   |=========================================                        |  63%
   |                                                                       
-  |==========================================                       |  64%
+  |=========================================                        |  64%
   |                                                                       
   |===========================================                      |  66%
   |                                                                       
@@ -1206,23 +1220,25 @@ aac_buyer %&gt;%
   |                                                                       
   |=============================================                    |  69%
   |                                                                       
-  |==============================================                   |  71%
+  |==============================================                   |  70%
   |                                                                       
   |===============================================                  |  72%
   |                                                                       
-  |================================================                 |  74%
+  |================================================                 |  73%
   |                                                                       
   |=================================================                |  75%
   |                                                                       
-  |==================================================               |  78%
+  |==================================================               |  76%
+  |                                                                       
+  |===================================================              |  79%
   |                                                                       
   |====================================================             |  80%
   |                                                                       
-  |====================================================             |  81%
+  |=====================================================            |  82%
   |                                                                       
   |======================================================           |  83%
   |                                                                       
-  |=======================================================          |  84%
+  |=======================================================          |  85%
   |                                                                       
   |========================================================         |  86%
   |                                                                       
@@ -1236,9 +1252,11 @@ aac_buyer %&gt;%
   |                                                                       
   |=============================================================    |  94%
   |                                                                       
-  |===============================================================  |  96%
+  |==============================================================   |  95%
   |                                                                       
   |===============================================================  |  98%
+  |                                                                       
+  |================================================================ |  99%
   |                                                                       
   |=================================================================| 100%</code></pre>
 <pre class="r"><code># I was able to use this to get the median household incomes based on tract. However, these tract numbers don't match up with the TRACTCE numbers I previously found.</code></pre>
@@ -1259,6 +1277,40 @@ aac_buyer %&gt;%
 #  geom_smooth(aes(dosage_unit, estimate), method = &quot;lm&quot;, se = FALSE)
 
 # From this, I can see that the county with the highest dosage unit was under the country's average for median household income.</code></pre>
+<pre class="r"><code>v17 &lt;- load_variables(2017, &quot;acs5&quot;, cache = TRUE)
+
+x &lt;- v17 %&gt;%
+  filter(str_detect(concept, &quot;EMPLOY&quot;))</code></pre>
+<pre class="r"><code># This should tell me the employment status of the labor force in Anne Arundel County in 2012. B23025_002
+
+aac_labor_force &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B23025_002&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
+<pre class="r"><code># From the 2008-2012 census data, there were 303,444 people in the workforce.  </code></pre>
+<pre class="r"><code># This is the breakdown of black people. B02001_003
+
+aac_black &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B02001_003&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
+<pre class="r"><code># In Anne Arundel County in 2012, there were 82,542 black people.</code></pre>
+<pre class="r"><code># This is the breakdown of asian people. B02001_005
+
+aac_asian &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B02001_005&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
+<pre class="r"><code># In 2012, there were 18,618 asian people in Anne Arundel County.</code></pre>
+<pre class="r"><code># This will give a breakdown of the white population. B02001_002
+
+aac_white &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B02001_002&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
+<pre class="r"><code># In Anne Arundel County in 2012, there were 408,521 white people.</code></pre>
+<pre class="r"><code>aac_population_2012 &lt;- county_population(state = &quot;MD&quot;, county = &quot;Anne Arundel&quot;, key = key)
+
+# In 2012, Anne Arundel County had a population of 538,473 people. Based on my three previous code blocks, Anne Arundel County is largely white.</code></pre>
+<pre class="r"><code>aac_race &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B02001_001&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
+<pre class="r"><code># This gives the same number as the county_population I did in the previous code block.</code></pre>
+<pre class="r"><code>aac_all_races &lt;- aac_white %&gt;%
+  inner_join(aac_black, by=(&quot;GEOID&quot;))</code></pre>
+<pre class="r"><code>poverty_rate &lt;- get_acs(geography = &quot;county&quot;, variables = c(&quot;B06012_002&quot;), year = 2012)</code></pre>
+<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
 
 
 

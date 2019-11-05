@@ -331,6 +331,86 @@ country_income_08_12 <- country_income_08_12 %>%
 
 ```
 
+```{r}
+
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+
+x <- v17 %>%
+  filter(str_detect(concept, "EMPLOY"))
+
+```
+
+```{r}
+
+# This should tell me the employment status of the labor force in Anne Arundel County in 2012. B23025_002
+
+aac_labor_force <- get_acs(geography = "county", variables = c("B23025_002"), year = 2012)
+
+# From the 2008-2012 census data, there were 303,444 people in the workforce.  
+
+```
+
+```{r}
+
+# This is the breakdown of black people. B02001_003
+
+aac_black <- get_acs(geography = "county", variables = c("B02001_003"), year = 2012)
+
+# In Anne Arundel County in 2012, there were 82,542 black people.
+
+```
+
+```{r}
+
+# This is the breakdown of asian people. B02001_005
+
+aac_asian <- get_acs(geography = "county", variables = c("B02001_005"), year = 2012)
+
+# In 2012, there were 18,618 asian people in Anne Arundel County.
+
+```
+
+```{r}
+
+# This will give a breakdown of the white population. B02001_002
+
+aac_white <- get_acs(geography = "county", variables = c("B02001_002"), year = 2012)
+
+# In Anne Arundel County in 2012, there were 408,521 white people.
+
+```
+
+```{r}
+
+aac_population_2012 <- county_population(state = "MD", county = "Anne Arundel", key = key)
+
+# In 2012, Anne Arundel County had a population of 538,473 people. Based on my three previous code blocks, Anne Arundel County is largely white.
+
+```
+
+```{r}
+
+aac_race <- get_acs(geography = "county", variables = c("B02001_001"), year = 2012)
+
+# This gives the same number as the county_population I did in the previous code block.
+
+```
+
+```{r}
+
+aac_all_races <- aac_white %>%
+  inner_join(aac_black, by=("GEOID"))
+
+```
+
+```{r}
+
+poverty_rate <- get_acs(geography = "county", variables = c("B06012_002"), year = 2012)
+
+```
+
+
+
 
 
 
