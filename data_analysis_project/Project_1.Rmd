@@ -20,6 +20,7 @@ library(ggrepel)
 library(tidycensus)
 library(dplyr)
 library(rvest)
+library(mapview)
 
 ```
 
@@ -409,8 +410,166 @@ poverty_rate <- get_acs(geography = "county", variables = c("B06012_002"), year 
 
 ```
 
+```{r}
+
+race <- get_acs(geography = "county", variables = c("B02001_001"), year = 2012)
+
+```
+
+```{r}
+
+pop_poverty <- race %>%
+  inner_join(poverty_rate, by=c("GEOID")) %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(poverty_rate = estimate.y/estimate.x *100) 
+
+# I tried several times to rename the columns: estimate.x to "population" and estimate.y to "poverty. Neither the rename nor mutate functions worked. I tried colnames, as well. It kept telling me the object wasn't found, those column types weren't supported or spouting random error messages. I'm not sure my dplyr is properly installed.
+
+# With this, I joined the population and poverty tables and created a new column to calculate the poverty rate in every county in the country (except Puerto Rico, which is not included in this dataset).
+
+```
+
+```{r}
+
+# mapview(pop_poverty, xcol = "estimate.x", ycol = "estimate.y", legend = TRUE)
+
+# Can I not map this out because the data is by county? And there isn't a specific column for state? Is there an easy fix to this?
+
+```
+
+```{r}
+
+white_pop <- aac_white %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(white_percentage = estimate.x/estimate.y *100)
+
+# With this, I found the number of people who identify as white and then compared that to the county's total population to find the percentage of white residents in each county. Much of the research says the opioid crisis largely impacted the white population, and I want to see if that's true. The next step will be to compare this to the dosage unit.
+
+```
+
+```{r}
+
+white_poverty <- pop_poverty %>%
+  inner_join(white_pop, by="GEOID") %>%
+  select(GEOID, NAME.x.x, poverty_rate, white_percentage)
+
+```
+
+```{r}
+
+ggplot(white_poverty) +
+  geom_point(aes(poverty_rate, white_percentage)) +
+  labs(title="HED", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(poverty_rate, white_percentage), method = "lm", se = FALSE)
+  
+# This isn't perfect, but from this graph, we can see that the areas with a higher white percentage have a much lower poverty rate. Now I need to add in dosage unit and unemployment. 
+
+```
+
+```{r}
+
+# I need to find the total population of men in the workforce, then the total number of women in the workforce. Then I will add those together and divide it by the total population, and this will give me a (very) rough idea of what the unemployment rate is. 
+
+# The variable I'm using is unemployment based on health care enrollment. I want to see if this works. B27011_008
+
+unemployment_by_healthcare <- get_acs(geography = "county", variables = c("B27011_008"), year = 2012)
+
+```
+
+```{r}
+
+total_unemplyment <- unemployment_by_healthcare %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(unemployment_rate = estimate.x/estimate.y *100)
+
+# These numbers aren't as outrageous as I thought they would be, so I could see this being fairly accurate. 
+
+```
+
+```{r}
+
+everything <- total_unemplyment %>%
+  inner_join(white_poverty, by="GEOID") %>%
+  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage)
+
+# So far, I don't see too many shocking trends. The places with the highest poverty rate generally have a lower white population. Poverty and unemployment are generally similar. I need to add in dosage unit to get the key piece of my analysis, but I don't know how to get dosage unit for every county.
+
+```
+
+```{r}
+
+pills <- summarized_county_annual(key = key)
+
+```
 
 
+```{r}
 
+pills_population <- pills %>%
+  inner_join(race, by=c("countyfips" = "GEOID")) %>%
+  group_by(BUYER_COUNTY, BUYER_STATE, countyfips) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT), total_population = sum(estimate)) %>%
+  mutate(pills_per_person = total_pills/total_population) %>%
+  inner_join(everything, by=c("countyfips" = "GEOID"))
+
+
+```
+
+```{r}
+
+county_geodata_shifted <- get_acs(geography = "county",
+              variables = "B01001_001", geometry = TRUE, shift_geo = TRUE)
+
+
+pills_population <- county_geodata_shifted %>%
+  inner_join(pills_population, by=c("GEOID" = "countyfips"))
+
+```
+
+```{r}
+
+mapview(pills_population, zcol = "pills_per_person", legend = TRUE)
+
+```
+
+```{r}
+
+ggplot(pills_population) +
+  geom_point(aes(total_pills, total_population)) +
+  labs(title="HED", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(total_pills, total_population), method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+# install.packages("corrr")
+# install.packages('lsr')
+library(lsr)
+
+```
+
+```{r}
+
+library(corrr)
+
+# glimpse(pills_population)
+
+# pills_population %>%
+#  ungroup() %>%
+#  select(-BUYER_COUNTY, -BUYER_STATE, -countyfips, -NAME.x) %>%
+#  correlate()
+
+# The correlate function allows me to quickly see the relationships between each of these factors without creating a ton of scatter plots. There isn't too high of a correlation between anything I'm looking at, but the highest correlations are between total pills and white percentage, and poverty rate and pills per person.
+
+```
 
 
