@@ -91,6 +91,16 @@ md_2012_pills_per_person <- maryland_2012 %>%
 
 ```{r}
 
+md_2012_pills_per_person <- as.data.frame(md_2012_pills_per_person)
+
+md_2012_pills_per_person %>%
+  select(-buyer_county, -countyfips) %>%
+  correlate()
+
+```
+
+```{r}
+
 md_county_median_household_income <- md_county_median_household_income %>%
   mutate(countyfips = GEOID)
 
@@ -237,7 +247,7 @@ country_pills_2012 <- arcos_county_pills_per_year %>%
   select(buyer_county, buyer_state, year, dosage_unit) %>%
   arrange(desc(dosage_unit))
 
-# Where Anne Arundel County ranks in the county by year:
+# Where Anne Arundel County ranks in the country by year:
 # 2006: 108, with 14376402 pills
 # 2007: 112, with 15836968 pills
 # 2008: 124, with 16671976 pills
@@ -507,7 +517,6 @@ pills <- summarized_county_annual(key = key)
 
 ```
 
-
 ```{r}
 
 pills_population <- pills %>%
@@ -517,7 +526,6 @@ pills_population <- pills %>%
   mutate(pills_per_person = total_pills/total_population) %>%
   inner_join(everything, by=c("countyfips" = "GEOID"))
 
-
 ```
 
 ```{r}
@@ -526,14 +534,14 @@ county_geodata_shifted <- get_acs(geography = "county",
               variables = "B01001_001", geometry = TRUE, shift_geo = TRUE)
 
 
-pills_population <- county_geodata_shifted %>%
+pills_population_map <- county_geodata_shifted %>%
   inner_join(pills_population, by=c("GEOID" = "countyfips"))
 
 ```
 
 ```{r}
 
-mapview(pills_population, zcol = "pills_per_person", legend = TRUE)
+mapview(pills_population_map, zcol = "pills_per_person", legend = TRUE)
 
 ```
 
@@ -561,12 +569,14 @@ library(lsr)
 
 library(corrr)
 
-# glimpse(pills_population)
+#glimpse(pills_population)
 
-# pills_population %>%
-#  ungroup() %>%
-#  select(-BUYER_COUNTY, -BUYER_STATE, -countyfips, -NAME.x) %>%
-#  correlate()
+pills_population <- as.data.frame(pills_population)
+
+pills_population %>%
+  select(-BUYER_COUNTY, -BUYER_STATE, -countyfips, -NAME.x) %>%
+  correlate()
+
 
 # The correlate function allows me to quickly see the relationships between each of these factors without creating a ton of scatter plots. There isn't too high of a correlation between anything I'm looking at, but the highest correlations are between total pills and white percentage, and poverty rate and pills per person.
 

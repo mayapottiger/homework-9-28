@@ -1,0 +1,718 @@
+---
+title: "Project_2"
+author: "Maya Pottiger"
+date: "11/27/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# running libraries to use
+
+library(tidyverse)
+library(janitor)
+library(arcos)
+library(scales)
+library(ggrepel)
+library(tidycensus)
+library(dplyr)
+library(rvest)
+library(mapview)
+library(lsr)
+library(corrr)
+library(stringr)
+
+```
+
+```{r}
+
+# In our last in-class lab, we wrote code to rank zip codes based on the median income in a county and how many pills per person the county received from 2006-2012. At the end of the lab, I ran the data for all of the counties in the country. Right now, I am going to run the data for the individual towns within Anne Arundel County. I've looked at the rankings before, but now I will visualize them.
+
+# This is from lab_O7. I requested my own key from the census: 
+
+key <- "uO4EK6I"
+
+census_api_key("366af81ca42273ae67ad0729766f54f041bd300d")
+
+
+# The following graf is from lab_07:
+
+# Store a table with the median household income value for each county using the get_acs() function.  ACS is short for American Community Survey, one of two main census products. In the table that's loaded in, the :estimate" is the median household income for that county, averaged over 5 years ending in 2006. 
+
+county_median_household_income <- get_acs(geography = "county", variables = c("B19013_001"), survey="acs5", year = 2012)
+
+# How did I get the variables? I pulled in a table from the tidycensus package that lists all of the thousands of variables available through the census. Load the table below and view it.  Use filters in the R Viewer window to find things you might want to use later. You can also find table and variable numbers at https://data.census.gov/cedsci/.
+
+acs_variables <- load_variables(2012, "acs5", cache = TRUE)
+
+# Filter just for Maryland counties
+
+md_county_median_household_income <- county_median_household_income %>%
+  filter(str_detect(NAME, ", Maryland"))
+
+```
+
+```{r}
+
+# In the state of Maryland, where does Anne Arundel County rank in terms of pills received? 
+
+arcos_county_pills_per_year <- summarized_county_annual(key = key) %>%
+  clean_names()
+
+```
+
+```{r}
+
+maryland_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(buyer_county, year, dosage_unit, countyfips)
+```
+
+```{r}
+maryland_population_2012 <- county_population(key = key) %>%
+  clean_names() %>%
+  filter(buyer_state == "MD", year=="2012") %>%
+  select(county_name, population, countyfips)
+
+```
+
+```{r}
+maryland_2012 <- maryland_pills_2012 %>%
+  inner_join(maryland_population_2012, by=("countyfips")) %>%
+  select(buyer_county, dosage_unit, population, countyfips)
+
+```
+
+```{r}
+
+md_2012_pills_per_person <- maryland_2012 %>%
+  select(buyer_county, dosage_unit, population, countyfips) %>%
+  mutate(pills_per_person = (dosage_unit / population))
+
+```
+
+```{r}
+
+md_county_median_household_income <- md_county_median_household_income %>%
+  mutate(countyfips = GEOID)
+
+```
+
+```{r}
+
+md_2012_household_pills <- md_county_median_household_income %>%
+  inner_join(md_2012_pills_per_person, by=("countyfips")) %>%
+  arrange(desc(dosage_unit))
+
+# (1) From this, we learn that Anne Arundel County ranks third in the most pills received in the state of Maryland.
+
+```
+
+```{r}
+
+# In the state of Maryland, where does Anne Arundel County fall in terms of median household income? 
+
+md_2012_household_pills %>%
+  arrange(desc(estimate))
+
+# (2) Anne Arundel County is the fifth-richest county in Maryland. Baltimore County, which received the most pills, ranks 12th. The poorest county in Maryland, Allegany County, ranks 12th for the most number of pills received. In Maryland, there isn't a direct correlation between median household income and number of pills received. I want to find out whether or not there is a national trend.
+
+```
+
+```{r}
+
+# Over the 2006-2012 period that the ARCOS database tracks, where does Anne Arundel County fall nationally in terms of how many pills it received each year? 
+
+country_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(year=="2006") %>%
+  select(buyer_county, buyer_state, year, dosage_unit, countyfips) %>%
+  arrange(desc(dosage_unit))
+
+# Where Anne Arundel County ranks in the country by year:
+# 2006: 108, with 14376402 pills
+# 2007: 112, with 15836968 pills
+# 2008: 124, with 16671976 pills
+# 2009: 117, with 18239025 pills
+# 2010: 124, with 19151845 pills
+# 2011: 126, with 20354650 pills
+# 2012: 125, with 19928983 pills
+
+# (3) Anne Arundel County ranked the highest in 2006, at 108 with a total 14,376,402 pills received.
+
+```
+
+```{r}
+
+# Where does Anne Arundel County fall nationally in terms of median household income? 
+
+country_income_05_09 <- get_acs(geography = "county", variables = c("B19013_001"), year = 2009) %>%
+  arrange(desc(estimate))
+
+# (4) From 2005-2009, Anne Arundel County ranked 34th in median household income in the country. This dataset has a large margin of error.
+
+```
+
+```{r}
+
+# Where does Anne Arundel County fall nationally in terms of median household income? 
+
+country_income_08_12 <- get_acs(geography = "county", variables = c("B19013_001"), year = 2012) %>%
+  arrange(desc(estimate))
+
+# (5) From 2008-2012, Anne Arundel County moved up in rank to 27th in median household income in the country. 
+
+```
+
+```{r}
+
+# How does dosage_unit relate to median household income? 
+
+country_income_08_12 <- country_income_08_12 %>%
+  mutate(countyfips = GEOID)
+
+```
+
+```{r}
+
+country_income_pills <- country_income_08_12 %>%
+  inner_join(country_pills_2012, by=("countyfips")) %>%
+  arrange(desc(dosage_unit))
+
+```
+
+```{r}
+
+ggplot(country_income_pills) +
+  geom_point(aes(dosage_unit, estimate)) +
+  labs(title="Dosage Unit by Median Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="buyer_county") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(dosage_unit, estimate), method = "lm", se = FALSE)
+
+# (6) From this, I can see that the county with the highest dosage unit was under the country's average for median household income.
+
+```
+
+```{r}
+
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+
+x <- v17 %>%
+  filter(str_detect(concept, "EMPLOY"))
+
+```
+
+```{r}
+
+# This should tell me the employment status of the labor force in Anne Arundel County in 2012. USE VARIABLE B23025_002
+
+aac_labor_force <- get_acs(geography = "county", variables = c("B23025_002"), year = 2012)
+
+# (7) From the 2008-2012 census data, there were 303,444 people in the workforce.  
+
+```
+
+```{r}
+
+# This is the breakdown of black people in Anne Arundel County. USE VARIABLE B02001_003
+
+aac_black <- get_acs(geography = "county", variables = c("B02001_003"), year = 2012)
+
+# (8) In Anne Arundel County in 2012, there were 82,542 black people.
+
+```
+
+```{r}
+
+# This is the breakdown of asian people in Anne Arundel County. USE VARIABLE B02001_005
+
+aac_asian <- get_acs(geography = "county", variables = c("B02001_005"), year = 2012)
+
+# (9) In 2012, there were 18,618 asian people in Anne Arundel County.
+
+```
+
+```{r}
+
+# This will give a breakdown of the white population in Anne Arundel County. USE VARIABLE B02001_002
+
+aac_white <- get_acs(geography = "county", variables = c("B02001_002"), year = 2012)
+
+# (10) In Anne Arundel County in 2012, there were 408,521 white people.
+
+```
+
+```{r}
+
+# What was the population of Anne Arundel County in 2012?
+
+aac_population_2012 <- county_population(state = "MD", county = "Anne Arundel", key = key)
+
+# (11) In 2012, Anne Arundel County had a population of 538,473 people. Based on my three previous code blocks, Anne Arundel County is largely white.
+
+```
+
+```{r}
+
+# Does the variable for 'all races' work the same as how I previously found the total population?
+
+aac_race <- get_acs(geography = "county", variables = c("B02001_001"), year = 2012)
+
+# (12) This gives the same number as the county_population I did in the previous code block.
+
+```
+
+```{r}
+
+# My research has said the opioid crisis largely impacted white people. So how does pills per person compare to the non-white population? 
+
+race_visual <- aac_asian %>%
+  inner_join(aac_black, by=("GEOID")) %>%
+  inner_join(aac_white, by=("GEOID")) %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y, estimate)
+
+```
+
+```{r}
+
+race_visual %>%
+  rename("black" = "estimate.y") %>%
+  rename("white" = "estimate") %>%
+  rename("asian" = "estimate.x")
+
+# It took me a very long time to make this work, and it isn't working in View, only here.
+
+```
+
+```{r}
+
+race <- get_acs(geography = "county", variables = c("B02001_001"), year = 2012)
+
+```
+
+```{r}
+
+poverty_rate <- get_acs(geography = "county", variables = c("B06012_002"), year = 2012)
+
+```
+
+```{r}
+
+# What is the poverty rate per county?
+
+pop_poverty <- race %>%
+  inner_join(poverty_rate, by=c("GEOID")) %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(poverty_rate = estimate.y/estimate.x *100) 
+
+# I tried several times to rename the columns: estimate.x to "population" and estimate.y to "poverty. Neither the rename nor mutate functions worked. I tried colnames, as well. It kept telling me the object wasn't found, those column types weren't supported or spouting random error messages. I'm not sure my dplyr is properly installed.
+
+# (13) With this, I joined the population and poverty tables and created a new column to calculate the poverty rate in every county in the country (except Puerto Rico, which is not included in this dataset).
+
+```
+
+```{r}
+
+nonwhite_population <- aac_asian %>%
+  inner_join(aac_black, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(nonwhite_total = estimate.x + estimate.y) %>%
+  select(GEOID, NAME.x, nonwhite_total)
+
+```
+
+```{r}
+
+pills <- summarized_county_annual(key = key)
+
+```
+
+```{r}
+
+# This now includes pills and pills per person, in addition to the other variables I found, to see if anything sticks out.
+
+pills_population <- pills %>%
+  inner_join(race, by=c("countyfips" = "GEOID")) %>%
+  group_by(BUYER_COUNTY, BUYER_STATE, countyfips) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT), total_population = sum(estimate)) %>%
+  mutate(pills_per_person = total_pills/total_population) %>%
+  inner_join(everything, by=c("countyfips" = "GEOID"))
+
+# (19) This features every county/countyfips in the country, and includes the following information for each for 2012: total pills, total population, pills per person, unemployment rate, poverty rate, and percentage of white population. Using this, I should be able to see what/if any of these fields are correlated. 
+
+```
+
+```{r}
+
+county_geodata_shifted <- get_acs(geography = "county",
+              variables = "B01001_001", geometry = TRUE, shift_geo = TRUE)
+
+
+pills_population_map <- county_geodata_shifted %>%
+  inner_join(pills_population, by=c("GEOID" = "countyfips"))
+
+```
+
+```{r}
+
+nonwhite_pills <- nonwhite_population %>%
+  inner_join(pills_population_map, by="GEOID") %>%
+  select(GEOID, NAME, nonwhite_total, pills_per_person)
+
+```
+
+```{r}
+
+ggplot(nonwhite_pills) +
+  geom_point(aes(nonwhite_total, pills_per_person)) +
+  labs(title="Pills Per Person in Non-White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(nonwhite_total, pills_per_person), method = "lm", se = FALSE)
+
+# (14) From this, we can see that, overall, the smaller the number of non-white people in a county, the smaller the number of pills per person.
+
+```
+
+```{r}
+
+aac_all_races <- aac_white %>%
+  inner_join(aac_black, by=("GEOID"))
+
+```
+
+```{r}
+
+# What is the percentage of white residents in each county?
+
+white_pop <- aac_white %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(white_percentage = estimate.x/estimate.y *100)
+
+# (15) With this, I found the number of people who identify as white and then compared that to the county's total population to find the percentage of white residents in each county. Much of the research says the opioid crisis largely impacted the white population, and I want to see if that's true. The next step will be to compare this to the dosage unit.
+
+```
+
+```{r}
+
+# How do the white population and poverty rate compare?
+
+white_poverty <- pop_poverty %>%
+  inner_join(white_pop, by="GEOID") %>%
+  select(GEOID, NAME.x.x, poverty_rate, white_percentage)
+
+```
+
+```{r}
+
+ggplot(white_poverty) +
+  geom_point(aes(poverty_rate, white_percentage)) +
+  labs(title="Poverty Rate Compared to White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(poverty_rate, white_percentage), method = "lm", se = FALSE)
+  
+# (16) This isn't perfect, but from this graph, we can see that the areas with a higher white percentage have a much lower poverty rate. Now I need to add in dosage unit and unemployment. 
+
+```
+
+```{r}
+
+# I need to find the total population of men in the workforce, then the total number of women in the workforce. Then I will add those together and divide it by the total population, and this will give me a (very) rough idea of what the unemployment rate is. 
+
+# The variable I'm using is unemployment based on health care enrollment. I want to see if this works. B27011_008
+
+unemployment_by_healthcare <- get_acs(geography = "county", variables = c("B27011_008"), year = 2012)
+
+```
+
+```{r}
+
+total_unemplyment <- unemployment_by_healthcare %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(unemployment_rate = estimate.x/estimate.y *100)
+
+# (17) These numbers aren't as outrageous as I thought they would be, so I could see this being fairly accurate. 
+
+```
+
+```{r}
+
+# I want to combine all of the variables I've found into one table so I can start comparing them and see if anything stands out.
+
+everything <- total_unemplyment %>%
+  inner_join(white_poverty, by="GEOID") %>%
+  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage)
+
+# (18) So far, I don't see too many shocking trends. The places with the highest poverty rate generally have a lower white population. Poverty and unemployment are generally similar. I need to add in dosage unit to get the key piece of my analysis.
+
+```
+
+```{r}
+
+# How would I effectively visualize the pills per person in each county?
+
+mapview(pills_population_map, zcol = "pills_per_person", legend = TRUE)
+
+# (20) This is a visual representation of how many pills per person was in each county.
+
+```
+
+```{r}
+
+# Do total pills directly correlate to the total popluation? As in, the higher the population, the higher the total pills?
+
+ggplot(pills_population) +
+  geom_point(aes(total_pills, total_population)) +
+  labs(title="Total Population and Total Pills", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(total_pills, total_population), method = "lm", se = FALSE)
+
+# (21) This isn't too telling, but it does show some outliers in how many pills some counties received in relation to its total population.
+
+```
+
+```{r}
+
+# What is an easy way to show the relationship between many variables all at once?
+
+pills_population <- as.data.frame(pills_population)
+
+pills_population %>%
+  select(-BUYER_COUNTY, -BUYER_STATE, -countyfips, -NAME.x) %>%
+  correlate()
+
+
+# (22) The correlate function allows me to quickly see the relationships between each of these factors without creating a ton of scatter plots. There isn't too high of a correlation between anything I'm looking at, but the highest correlations are between total pills and white percentage, and poverty rate and pills per person.
+
+```
+
+```{r}
+
+# Create a visualization that shows the correlation between total pills and the white population.
+
+ggplot(pills_population) +
+  geom_point(aes(total_pills, white_percentage)) +
+  labs(title="How Total Pills Correlates with White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(total_pills, white_percentage), method = "lm", se = FALSE)
+
+# (23) I wanted to visualize the correlation between total_pills and white_percentage from what I found in the previous block, as this was one of the two stronger correlations. It shows that the higher the percentage of the white population, the higher the total pills.
+
+```
+
+```{r}
+
+# What is the relationship between poverty rate and pills per person?
+
+ggplot(pills_population) +
+  geom_point(aes(poverty_rate, pills_per_person)) +
+  labs(title="Pills Per Person and Poverty Rate", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(poverty_rate, pills_per_person), method = "lm", se = FALSE)
+
+# (24) This scatter plot is the most interesting to look at, as the points are more spread out. There are a few outliers, but you can see that the highest density of of pills per person is when the poverty rate is lower. This is relatively in line with what I found when researching the opioid crisis, which said it largely impacted the white and poor populations.
+
+```
+
+
+```{r}
+
+# Now that I've established a few national trends, I want to go back and see how Anne Arundel County fits in. In the beginning, I found that Anne Arundel County is largely white, so how does the county's total pills correlate with the white population?
+
+pills_county <- everything %>%
+  inner_join(pills, by=c("GEOID" = "countyfips")) %>%
+  group_by(NAME.x, BUYER_COUNTY, BUYER_STATE, GEOID) %>%
+  summarise(total_pills = sum(DOSAGE_UNIT))
+
+```
+
+```{r}
+
+everything <- everything %>%
+  inner_join(pills_county, by="GEOID") %>%
+  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage, total_pills)
+
+```
+
+```{r}
+
+everything %>% 
+  filter(str_detect(NAME.x.x, "Maryland")) %>%
+  select(-GEOID, -NAME.x) %>%
+  correlate()
+
+# (25) Total pills does not at all correlate with unemployment or poverty, meaning this was more of a wealthy issue. It most strongly correlates with the white percentage, but not too shocking.
+
+```
+
+```{r}
+
+# What is the relationship between total pills and white population?
+
+ggplot(everything) +
+  geom_point(aes(white_percentage, total_pills.x)) +
+  labs(title="Total Pills and White Popluation", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(white_percentage, total_pills.x), method = "lm", se = FALSE)
+
+# (26) This is a visual of total pills and white population in each county. There are many outliers, but generally, the higher the percentage of the white population, the higher the total pills sent to a county.
+
+```
+
+```{r}
+
+# At some point, median household income got lost and disappeared from 'everything,' so now I'm going to add it back in and see if that offers any further information on how these factors relate to each other.
+
+everything <- everything %>%
+  inner_join(county_median_household_income, by="GEOID") %>%
+  select(GEOID, NAME.x.x, unemployment_rate, white_percentage, poverty_rate, total_pills.x, estimate)
+
+```
+
+```{r}
+
+everything %>% 
+  filter(str_detect(NAME.x.x, "Maryland")) %>%
+  select(-GEOID, -NAME.x.x) %>%
+  correlate()
+
+# (27) It seems here that the highest correlation is between median household income and total pills. I'm going to create a visual to see if it's any more clear.
+
+```
+
+```{r}
+
+# What is the relationship between median household income and total pills?
+
+ggplot(everything) +
+  geom_point(aes(estimate, total_pills.x)) +
+  labs(title="Total Pills and Median Household Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(estimate, total_pills.x), method = "lm", se = FALSE)
+
+# (28) This shows the opposite of what I saw before. It seems counties with a median household income of ~$50,000 had the most total pills. To see how much weight this holds, I would need to know more about the demographics for those specific counties and how many counties in the country fall into this income range.
+
+```
+
+```{r}
+
+# What is the breakdown of pills per person and median household income?
+
+pills_median <- everything %>%
+  inner_join(pills_population, by=c("NAME.x.x" = "NAME.x")) %>%
+  select(GEOID, NAME.x.x, pills_per_person, total_pills, estimate)
+
+```
+
+```{r}
+
+ggplot(pills_median) +
+  geom_point(aes(estimate, pills_per_person)) +
+  labs(title="Pills Per Person and Median Household Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(estimate, pills_per_person), method = "lm", se = FALSE)
+
+# (29) This shows that the lower the median household income, the larger the pills per person.
+
+```
+
+```{r}
+
+# Now I want to see how the total pills correlates with each race. 
+
+pills_race <- everything %>%
+  inner_join(aac_asian, by="GEOID") %>%
+  inner_join(aac_black, by="GEOID") %>%
+  inner_join(aac_race, by="GEOID") %>%
+  rename("black" = "estimate.x.x") %>%
+  rename("white" = "estimate.y.y") %>%
+  rename("asian" = "estimate.y")%>%
+  select(GEOID, NAME.x.x, black, white, asian, total_pills.x)
+
+```
+
+```{r}
+
+# What is the relationship between the three race variables and total pills?
+
+pills_race %>% 
+  filter(str_detect(NAME.x.x, "Maryland")) %>%
+  select(-GEOID, -NAME.x.x) %>%
+  correlate()
+
+# (30) Really pleased that I was able to do this and rename all the columns. These numbers are actually a lot higher and closer than I thought they'd be, but it definitely looks like the highest correlation is between the white population and total pills.
+
+```
+
+```{r}
+
+# What is the relationship between the black population and total pills?
+
+ggplot(pills_race) +
+  geom_point(aes(black, total_pills.x)) +
+  labs(title="Total Pills and Black Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(black, total_pills.x), method = "lm", se = FALSE)
+
+# (31) When visualized, this makes the correlation between the black population and total pills look smaller.
+
+```
+
+```{r}
+
+# What is the relationships between the white population adn total pills?
+
+ggplot(pills_race) +
+  geom_point(aes(white, total_pills.x)) +
+  labs(title="Total Pills and White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(white, total_pills.x), method = "lm", se = FALSE)
+
+# (32) This is more of a narrow and upward trend than the black population and has much fewer outliers.
+
+```
+
+```{r}
+
+# What is the relationship between the asian population and total pills?
+
+ggplot(pills_race) +
+  geom_point(aes(asian, total_pills.x)) +
+  labs(title="Total Pills and Asian Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(asian, total_pills.x), method = "lm", se = FALSE)
+
+# (33) Fewer outliers than with the black population, but not as much of a direct or narrow trend as with the white population.
+
+```
+
+
+
