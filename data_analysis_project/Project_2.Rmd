@@ -328,7 +328,63 @@ nonwhite_population <- aac_asian %>%
 
 ```{r}
 
+# I need to find the total population of men in the workforce, then the total number of women in the workforce. Then I will add those together and divide it by the total population, and this will give me a (very) rough idea of what the unemployment rate is. 
+
+# The variable I'm using is unemployment based on health care enrollment. I want to see if this works. B27011_008
+
+unemployment_by_healthcare <- get_acs(geography = "county", variables = c("B27011_008"), year = 2012)
+
+```
+
+```{r}
+
+total_unemplyment <- unemployment_by_healthcare %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(unemployment_rate = estimate.x/estimate.y *100)
+
+# (17) These numbers aren't as outrageous as I thought they would be, so I could see this being fairly accurate. 
+
+```
+
+```{r}
+
+# What is the percentage of white residents in each county?
+
+white_pop <- aac_white %>%
+  inner_join(race, by="GEOID") %>%
+  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
+  mutate(white_percentage = estimate.x/estimate.y *100)
+
+# (15) With this, I found the number of people who identify as white and then compared that to the county's total population to find the percentage of white residents in each county. Much of the research says the opioid crisis largely impacted the white population, and I want to see if that's true. The next step will be to compare this to the dosage unit.
+
+```
+
+```{r}
+
+# How do the white population and poverty rate compare?
+
+white_poverty <- pop_poverty %>%
+  inner_join(white_pop, by="GEOID") %>%
+  select(GEOID, NAME.x.x, poverty_rate, white_percentage)
+
+```
+
+```{r}
+
 pills <- summarized_county_annual(key = key)
+
+```
+
+```{r}
+
+# I want to combine all of the variables I've found into one table so I can start comparing them and see if anything stands out.
+
+everything <- total_unemplyment %>%
+  inner_join(white_poverty, by="GEOID") %>%
+  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage)
+
+# (18) So far, I don't see too many shocking trends. The places with the highest poverty rate generally have a lower white population. Poverty and unemployment are generally similar. I need to add in dosage unit to get the key piece of my analysis.
 
 ```
 
@@ -389,29 +445,6 @@ aac_all_races <- aac_white %>%
 
 ```{r}
 
-# What is the percentage of white residents in each county?
-
-white_pop <- aac_white %>%
-  inner_join(race, by="GEOID") %>%
-  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
-  mutate(white_percentage = estimate.x/estimate.y *100)
-
-# (15) With this, I found the number of people who identify as white and then compared that to the county's total population to find the percentage of white residents in each county. Much of the research says the opioid crisis largely impacted the white population, and I want to see if that's true. The next step will be to compare this to the dosage unit.
-
-```
-
-```{r}
-
-# How do the white population and poverty rate compare?
-
-white_poverty <- pop_poverty %>%
-  inner_join(white_pop, by="GEOID") %>%
-  select(GEOID, NAME.x.x, poverty_rate, white_percentage)
-
-```
-
-```{r}
-
 ggplot(white_poverty) +
   geom_point(aes(poverty_rate, white_percentage)) +
   labs(title="Poverty Rate Compared to White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
@@ -421,39 +454,6 @@ ggplot(white_poverty) +
   geom_smooth(aes(poverty_rate, white_percentage), method = "lm", se = FALSE)
   
 # (16) This isn't perfect, but from this graph, we can see that the areas with a higher white percentage have a much lower poverty rate. Now I need to add in dosage unit and unemployment. 
-
-```
-
-```{r}
-
-# I need to find the total population of men in the workforce, then the total number of women in the workforce. Then I will add those together and divide it by the total population, and this will give me a (very) rough idea of what the unemployment rate is. 
-
-# The variable I'm using is unemployment based on health care enrollment. I want to see if this works. B27011_008
-
-unemployment_by_healthcare <- get_acs(geography = "county", variables = c("B27011_008"), year = 2012)
-
-```
-
-```{r}
-
-total_unemplyment <- unemployment_by_healthcare %>%
-  inner_join(race, by="GEOID") %>%
-  select(GEOID, NAME.x, estimate.x, estimate.y) %>%
-  mutate(unemployment_rate = estimate.x/estimate.y *100)
-
-# (17) These numbers aren't as outrageous as I thought they would be, so I could see this being fairly accurate. 
-
-```
-
-```{r}
-
-# I want to combine all of the variables I've found into one table so I can start comparing them and see if anything stands out.
-
-everything <- total_unemplyment %>%
-  inner_join(white_poverty, by="GEOID") %>%
-  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage)
-
-# (18) So far, I don't see too many shocking trends. The places with the highest poverty rate generally have a lower white population. Poverty and unemployment are generally similar. I need to add in dosage unit to get the key piece of my analysis.
 
 ```
 
@@ -544,17 +544,25 @@ pills_county <- everything %>%
 
 ```{r}
 
-everything <- everything %>%
+everything_county <- everything %>%
   inner_join(pills_county, by="GEOID") %>%
-  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage, total_pills)
+  select(GEOID, NAME.x.x, unemployment_rate, poverty_rate, white_percentage, total_pills)
 
 ```
 
 ```{r}
 
-everything %>% 
+# everything <- everything %>%
+#  inner_join(pills_county, by="GEOID") %>%
+#  select(GEOID, NAME.x, unemployment_rate, poverty_rate, white_percentage)
+
+```
+
+```{r}
+
+everything_county %>% 
   filter(str_detect(NAME.x.x, "Maryland")) %>%
-  select(-GEOID, -NAME.x) %>%
+  select(-GEOID, -NAME.x.x) %>%
   correlate()
 
 # (25) Total pills does not at all correlate with unemployment or poverty, meaning this was more of a wealthy issue. It most strongly correlates with the white percentage, but not too shocking.
@@ -565,13 +573,13 @@ everything %>%
 
 # What is the relationship between total pills and white population?
 
-ggplot(everything) +
-  geom_point(aes(white_percentage, total_pills.x)) +
+ggplot(everything_county) +
+  geom_point(aes(white_percentage, total_pills)) +
   labs(title="Total Pills and White Popluation", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(white_percentage, total_pills.x), method = "lm", se = FALSE)
+  geom_smooth(aes(white_percentage, total_pills), method = "lm", se = FALSE)
 
 # (26) This is a visual of total pills and white population in each county. There are many outliers, but generally, the higher the percentage of the white population, the higher the total pills sent to a county.
 
@@ -581,15 +589,15 @@ ggplot(everything) +
 
 # At some point, median household income got lost and disappeared from 'everything,' so now I'm going to add it back in and see if that offers any further information on how these factors relate to each other.
 
-everything <- everything %>%
+everything_income <- everything_county %>%
   inner_join(county_median_household_income, by="GEOID") %>%
-  select(GEOID, NAME.x.x, unemployment_rate, white_percentage, poverty_rate, total_pills.x, estimate)
+  select(GEOID, NAME.x.x, unemployment_rate, white_percentage, poverty_rate, total_pills, estimate)
 
 ```
 
 ```{r}
 
-everything %>% 
+everything_income %>% 
   filter(str_detect(NAME.x.x, "Maryland")) %>%
   select(-GEOID, -NAME.x.x) %>%
   correlate()
@@ -602,13 +610,13 @@ everything %>%
 
 # What is the relationship between median household income and total pills?
 
-ggplot(everything) +
-  geom_point(aes(estimate, total_pills.x)) +
+ggplot(everything_income) +
+  geom_point(aes(estimate, total_pills)) +
   labs(title="Total Pills and Median Household Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(estimate, total_pills.x), method = "lm", se = FALSE)
+  geom_smooth(aes(estimate, total_pills), method = "lm", se = FALSE)
 
 # (28) This shows the opposite of what I saw before. It seems counties with a median household income of ~$50,000 had the most total pills. To see how much weight this holds, I would need to know more about the demographics for those specific counties and how many counties in the country fall into this income range.
 
@@ -618,9 +626,9 @@ ggplot(everything) +
 
 # What is the breakdown of pills per person and median household income?
 
-pills_median <- everything %>%
+pills_median <- everything_income %>%
   inner_join(pills_population, by=c("NAME.x.x" = "NAME.x")) %>%
-  select(GEOID, NAME.x.x, pills_per_person, total_pills, estimate)
+  select(GEOID, NAME.x.x, pills_per_person, total_pills.x, estimate)
 
 ```
 
@@ -642,14 +650,14 @@ ggplot(pills_median) +
 
 # Now I want to see how the total pills correlates with each race. 
 
-pills_race <- everything %>%
+pills_race <- everything_income %>%
   inner_join(aac_asian, by="GEOID") %>%
   inner_join(aac_black, by="GEOID") %>%
   inner_join(aac_race, by="GEOID") %>%
   rename("black" = "estimate.x.x") %>%
   rename("white" = "estimate.y.y") %>%
   rename("asian" = "estimate.y")%>%
-  select(GEOID, NAME.x.x, black, white, asian, total_pills.x)
+  select(GEOID, NAME.x.x, black, white, asian, total_pills)
 
 ```
 
@@ -671,12 +679,12 @@ pills_race %>%
 # What is the relationship between the black population and total pills?
 
 ggplot(pills_race) +
-  geom_point(aes(black, total_pills.x)) +
+  geom_point(aes(black, total_pills)) +
   labs(title="Total Pills and Black Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(black, total_pills.x), method = "lm", se = FALSE)
+  geom_smooth(aes(black, total_pills), method = "lm", se = FALSE)
 
 # (31) When visualized, this makes the correlation between the black population and total pills look smaller.
 
@@ -687,12 +695,12 @@ ggplot(pills_race) +
 # What is the relationships between the white population adn total pills?
 
 ggplot(pills_race) +
-  geom_point(aes(white, total_pills.x)) +
+  geom_point(aes(white, total_pills)) +
   labs(title="Total Pills and White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(white, total_pills.x), method = "lm", se = FALSE)
+  geom_smooth(aes(white, total_pills), method = "lm", se = FALSE)
 
 # (32) This is more of a narrow and upward trend than the black population and has much fewer outliers.
 
@@ -703,12 +711,12 @@ ggplot(pills_race) +
 # What is the relationship between the asian population and total pills?
 
 ggplot(pills_race) +
-  geom_point(aes(asian, total_pills.x)) +
+  geom_point(aes(asian, total_pills)) +
   labs(title="Total Pills and Asian Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(asian, total_pills.x), method = "lm", se = FALSE)
+  geom_smooth(aes(asian, total_pills), method = "lm", se = FALSE)
 
 # (33) Fewer outliers than with the black population, but not as much of a direct or narrow trend as with the white population.
 
