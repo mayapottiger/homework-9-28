@@ -640,7 +640,7 @@ ggplot(pills_median) +
   scale_y_continuous(labels = comma) +
   scale_x_continuous(labels = comma) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_smooth(aes(estimate, pills_per_person), method = "lm", se = FALSE)
+  geom_smooth(aes(estimate, pills_per_person), method = "loess", se = FALSE)
 
 # (29) This shows that the lower the median household income, the larger the pills per person.
 
@@ -668,7 +668,8 @@ pills_race <- everything_income %>%
 pills_race %>% 
   filter(str_detect(NAME.x.x, "Maryland")) %>%
   select(-GEOID, -NAME.x.x) %>%
-  correlate()
+  correlate() %>%
+  slice(4)
 
 # (30) Really pleased that I was able to do this and rename all the columns. These numbers are actually a lot higher and closer than I thought they'd be, but it definitely looks like the highest correlation is between the white population and total pills.
 
@@ -722,5 +723,168 @@ ggplot(pills_race) +
 
 ```
 
+```{r}
+
+race_pills_per_person <- pills_race %>%
+  mutate(black_percentage = (black/(white+black+asian)*100)) %>%
+  mutate(white_percentage = (white/(white+black+asian)*100)) %>%
+  mutate(asian_percentage = (asian/(white+black+asian)*100)) %>%
+  mutate(non_white_percentage = 100-white_percentage) %>%
+  inner_join(pills_median, by="GEOID") %>%
+  select(GEOID, NAME.x.x.x, black_percentage, white_percentage, asian_percentage, non_white_percentage, pills_per_person)
+
+options(scipen=999)
+
+```
+
+```{r}
+
+race_pills_per_person %>%
+  select(-GEOID, -NAME.x.x.x) %>%
+  correlate() %>%
+  slice(5) 
+  
+# This shows the correlation between the percentage of each race in a county and how that correlates with pills per person in a county.
+
+```
+
+```{r}
+
+ggplot(race_pills_per_person) +
+  geom_point(aes(asian_percentage, pills_per_person)) +
+  labs(title="Pills Per Person and Asian Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(asian_percentage, pills_per_person), method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+ggplot(race_pills_per_person) +
+  geom_point(aes(black_percentage, pills_per_person)) +
+  labs(title="Pills Per Person and Black Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(black_percentage, pills_per_person), method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+ggplot(race_pills_per_person) +
+  geom_point(aes(white_percentage, pills_per_person)) +
+  labs(title="Pills Per Person and White Population", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(white_percentage, pills_per_person), method = "loess", se = FALSE)
+
+```
+
+```{r}
+
+pills_median_case <- pills_median %>%
+  mutate(income = case_when(
+    estimate >= 75000 ~ "75+",
+    estimate >= 50000 ~ "50-74.99",
+    estimate >= 25000 ~ "25-49.99",
+    TRUE ~ "25 under")
+  ) %>%
+  # group_by(income) %>%
+  # summerise((average = mean(pills_per_person))
+  inner_join(race_pills_per_person, by="GEOID") %>%
+  mutate(nonewhite_percentage = case_when(
+    non_white_percentage >= 20 ~ "20+ Nonwhite Percentage",
+    TRUE ~ "Under 20 Nonwhite Percentage")) 
+
+
+
+
+
+pills_median_case%>%
+  group_by(income, nonewhite_percentage) %>%
+  summarise(average = mean(pills_per_person.x),
+            count=n()) %>%
+  arrange(desc(nonewhite_percentage, income))
+  
+pills_median_case %>%
+  filter(nonewhite_percentage == "Under 20 Nonwhite Percentage") %>%
+  ggplot() +
+  geom_point(aes(estimate, pills_per_person.x)) +
+  labs(title="Pills Per Person and Median Household Income", caption = "Source: DEA ARCOS database, via Washington Post", fill="") +
+  scale_y_continuous(labels = comma) +
+  scale_x_continuous(labels = comma) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(estimate, pills_per_person.x), method = "loess", se = FALSE)
+
+pills_median_case %>%
+  filter(nonewhite_percentage == "Under 20 Nonwhite Percentage") %>%
+  select(estimate, pills_per_person.x) %>%
+  correlate()
+
+
+```
+
+```{r}
+
+kentucky_pills_2012 <- arcos_county_pills_per_year %>%
+  filter(buyer_state == "KY", year=="2012") %>%
+  select(buyer_county, year, dosage_unit, countyfips)
+```
+
+```{r}
+kentucky_population_2012 <- county_population(key = key) %>%
+  clean_names() %>%
+  filter(buyer_state == "KY", year=="2012") %>%
+  select(county_name, population, countyfips)
+
+```
+
+```{r}
+kentucky_2012 <- kentucky_pills_2012 %>%
+  inner_join(kentucky_population_2012, by=("countyfips")) %>%
+  select(buyer_county, dosage_unit, population, countyfips)
+
+```
+
+```{r}
+
+ky_2012_pills_per_person <- kentucky_2012 %>%
+  select(buyer_county, dosage_unit, population, countyfips) %>%
+  mutate(pills_per_person = (dosage_unit / population))
+
+```
+
+```{r}
+
+ky_county_median_household_income <- county_median_household_income %>%
+  filter(str_detect(NAME, ", Kentucky"))
+
+ky_county_median_household_income <- ky_county_median_household_income %>%
+  mutate(countyfips = GEOID)
+
+```
+
+```{r}
+
+ky_2012_household_pills <- ky_county_median_household_income %>%
+  inner_join(ky_2012_pills_per_person, by=("countyfips")) %>%
+  arrange(desc(pills_per_person))
+
+# From this, we learn that Clay County ranks 10th in the most pills per person received in the state of Kentucky.
+
+```
+
+```{r}
+
+buyer_annual <- combined_buyer_annual(key = key)# %>%
+ # filter(BUYER_STATE == "KY", BUYER_COUNTY == "CLAY", year == "2012") %>%
+ # group_by(BUYER_COUNTY, BUYER_STATE) %>%
+ # summarise(DOSAGE_UNIT)
+
+```
 
 
